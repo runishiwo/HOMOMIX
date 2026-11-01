@@ -19,14 +19,28 @@ jobs:
           git remote add upstream https://github.com/Vbaethon/HOMOMIX.git
           git fetch upstream
           git merge --ff-only upstream/main
-      - name: Replace blob URLs with raw URLs
+      - name: Rewrite README icon URLs to this fork's raw URLs
         run: |
-          find . -name "README*.md" -exec sed -i \
-            -E 's#https://github\.com/(runishiwo|Vbaethon)/HOMOMIX/blob/main/#https://raw.githubusercontent.com/runishiwo/HOMOMIX/main/#g' {} +
+          python3 - <<'EOF'
+          import re
+          from pathlib import Path
+          RAW = "https://raw.githubusercontent.com/runishiwo/HOMOMIX/main/"
+          for f in Path(".").glob("README*.md"):
+              t = f.read_text(encoding="utf-8")
+              # absolute blob/raw URLs of either repo -> this fork's raw URL
+              t = re.sub(
+                  r'https://(?:raw\.githubusercontent\.com|github\.com)/(?:runishiwo|Vbaethon)/HOMOMIX/(?:blob/)?main/',
+                  RAW, t)
+              # relative icon links inside the gallery -> absolute raw URLs
+              t = re.sub(
+                  r'((?:src|href)=")(Icon/[^"]+)"',
+                  r'\g<1>' + RAW + r'\g<2>"', t)
+              f.write_text(t, encoding="utf-8")
+          EOF
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
-          git diff --cached --quiet || git commit -m "chore: replace blob URLs with raw URLs"
+          git diff --cached --quiet || git commit -m "chore: rewrite README icon URLs to raw URLs of this fork"
           git push
